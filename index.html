@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHATgb</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .glow-text {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #0073e6, 0 0 20px #0073e6;
+            }
+            to {
+                text-shadow: 0 0 10px #fff, 0 0 15px #4dabf7, 0 0 20px #4dabf7, 0 0 25px #4dabf7;
+            }
+        }
+        .message-container {
+            scroll-behavior: smooth;
+        }
+        .btn-glow:hover {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col">
+    <header class="py-6 px-4 text-center">
+        <h1 class="text-5xl font-bold mb-2 glow-text text-blue-400">CHATgb</h1>
+        <p class="text-gray-400">Developed by RAMZAN AHSAN</p>
+    </header>
+
+    <main class="flex-1 container mx-auto px-4 pb-16">
+        <div class="max-w-3xl mx-auto">
+            <div id="chat-container" class="message-container bg-gray-800 rounded-lg p-4 h-96 overflow-y-auto mb-4">
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-comment-dots text-4xl mb-2"></i>
+                    <p>Start chatting with the AI assistant</p>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <input 
+                    id="message-input" 
+                    type="text" 
+                    placeholder="Type your message here..." 
+                    class="flex-1 bg-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <button 
+                    id="send-button" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition btn-glow"
+                >
+                    <i class="fas fa-paper-plane mr-2"></i> Send
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 py-3 fixed bottom-0 w-full">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-center gap-3">
+                <a href="https://whatsapp.com/channel/0029Vb5j7KKBVJl1T9RTk80p" 
+                   target="_blank" 
+                   class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg flex items-center text-sm btn-glow"
+                   title="WhatsApp Channel"
+                >
+                    <i class="fab fa-whatsapp mr-1"></i> Channel
+                </a>
+                <a href="https://chat.whatsapp.com/LoafyPWMGOv88oElxdwOB8" 
+                   target="_blank" 
+                   class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg flex items-center text-sm btn-glow"
+                   title="WhatsApp Group"
+                >
+                    <i class="fab fa-whatsapp mr-1"></i> Group
+                </a>
+                <a href="https://t.me/Tips0Courses" 
+                   target="_blank" 
+                   class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg flex items-center text-sm btn-glow"
+                   title="Telegram"
+                >
+                    <i class="fab fa-telegram mr-1"></i> Telegram
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatContainer = document.getElementById('chat-container');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            
+            const apiKey = "sk_riq2gvEXmv89krPAqVUZg5GcDFgK3OVQoBZk1b3-SQw";
+            const baseUrl = "https://api.novita.ai/v3/openai";
+            const model = "qwen/qwen3-1.7b-fp8";
+            
+            async function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // Add user message to chat
+                addMessage('user', message);
+                messageInput.value = '';
+                
+                // Show typing indicator
+                const typingId = addTypingIndicator();
+                
+                try {
+                    const response = await fetch(`${baseUrl}/chat/completions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: [
+                                {
+                                    "role": "system",
+                                    "content": "Act like you are a helpful assistant."
+                                },
+                                {
+                                    "role": "user",
+                                    "content": message
+                                }
+                            ],
+                            stream: false,
+                            max_tokens: 1000
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Remove typing indicator
+                    removeTypingIndicator(typingId);
+                    
+                    // Add AI response to chat
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        addMessage('assistant', data.choices[0].message.content);
+                    } else {
+                        addMessage('assistant', "Sorry, I couldn't process your request.");
+                    }
+                    
+                    // Scroll to bottom
+                    scrollToBottom();
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    removeTypingIndicator(typingId);
+                    addMessage('assistant', "An error occurred while processing your request.");
+                    scrollToBottom();
+                }
+            }
+            
+            function addMessage(role, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `mb-4 ${role === 'user' ? 'text-right' : 'text-left'}`;
+                
+                const bubble = document.createElement('div');
+                bubble.className = `inline-block px-4 py-2 rounded-lg max-w-xs md:max-w-md lg:max-w-lg ${role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'}`;
+                bubble.textContent = content;
+                
+                messageDiv.appendChild(bubble);
+                chatContainer.appendChild(messageDiv);
+                
+                // If it's the first message, remove the placeholder
+                if (chatContainer.querySelector('.text-center')) {
+                    chatContainer.querySelector('.text-center').remove();
+                }
+            }
+            
+            function addTypingIndicator() {
+                const typingId = 'typing-' + Date.now();
+                const typingDiv = document.createElement('div');
+                typingDiv.id = typingId;
+                typingDiv.className = 'mb-4 text-left';
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'inline-block px-4 py-2 rounded-lg bg-gray-700 text-white';
+                
+                const dots = document.createElement('span');
+                dots.className = 'typing-dots';
+                dots.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+                
+                bubble.appendChild(dots);
+                typingDiv.appendChild(bubble);
+                chatContainer.appendChild(typingDiv);
+                
+                scrollToBottom();
+                return typingId;
+            }
+            
+            function removeTypingIndicator(id) {
+                const typingElement = document.getElementById(id);
+                if (typingElement) {
+                    typingElement.remove();
+                }
+            }
+            
+            function scrollToBottom() {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            // Event listeners
+            sendButton.addEventListener('click', sendMessage);
+            
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=Ukty/chat" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
